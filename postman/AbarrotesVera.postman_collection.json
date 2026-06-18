@@ -1,0 +1,300 @@
+{
+  "info": {
+    "_postman_id": "abarrotes-vera-pruebas-rest-firestore",
+    "name": "Abarrotes Vera — Pruebas REST (Firestore)",
+    "description": "Colección de pruebas funcionales de caja negra contra la API REST de Firebase Authentication y Cloud Firestore. Documentadas en §3.2.1 del documento académico.\n\nFlujo recomendado: ejecutar de arriba a abajo. TF-01 obtiene el idToken que las demás peticiones usan.\n\nAntes de correr:\n  Edit Collection → Variables → llena adminPassword y cashierPassword.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "TF-01 — Sign In como Admin (debe devolver idToken)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+              "const json = pm.response.json();",
+              "pm.test('Respuesta contiene idToken', () => pm.expect(json.idToken).to.be.a('string'));",
+              "pm.test('Respuesta contiene localId (uid)', () => pm.expect(json.localId).to.be.a('string'));",
+              "pm.collectionVariables.set('idToken', json.idToken);",
+              "pm.collectionVariables.set('adminUid', json.localId);",
+              "console.log('idToken admin guardado en variable de colección');"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [{"key": "Content-Type", "value": "application/json"}],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"{{adminEmail}}\",\n  \"password\": \"{{adminPassword}}\",\n  \"returnSecureToken\": true\n}"
+        },
+        "url": {
+          "raw": "https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key={{firebaseApiKey}}",
+          "protocol": "https",
+          "host": ["identitytoolkit", "googleapis", "com"],
+          "path": ["v1", "accounts:signInWithPassword"],
+          "query": [{"key": "key", "value": "{{firebaseApiKey}}"}]
+        },
+        "description": "Autentica al administrador usando Firebase Authentication REST API. Espera HTTP 200 y un idToken que se guarda automáticamente para las siguientes peticiones."
+      }
+    },
+    {
+      "name": "TF-02 — Sign In como Cajero",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+              "const json = pm.response.json();",
+              "pm.test('Respuesta contiene idToken', () => pm.expect(json.idToken).to.be.a('string'));",
+              "pm.collectionVariables.set('cashierToken', json.idToken);",
+              "pm.collectionVariables.set('cashierUid', json.localId);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [{"key": "Content-Type", "value": "application/json"}],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"{{cashierEmail}}\",\n  \"password\": \"{{cashierPassword}}\",\n  \"returnSecureToken\": true\n}"
+        },
+        "url": {
+          "raw": "https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key={{firebaseApiKey}}",
+          "protocol": "https",
+          "host": ["identitytoolkit", "googleapis", "com"],
+          "path": ["v1", "accounts:signInWithPassword"],
+          "query": [{"key": "key", "value": "{{firebaseApiKey}}"}]
+        },
+        "description": "Misma autenticación pero con la cuenta del cajero. Útil para verificar que ambos roles tienen acceso al sistema."
+      }
+    },
+    {
+      "name": "TF-03 — Sign In con credenciales inválidas (debe fallar)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 400 — Firebase rechaza la combinación', () => pm.response.to.have.status(400));",
+              "const json = pm.response.json();",
+              "pm.test('Mensaje de error presente', () => pm.expect(json.error).to.exist);",
+              "console.log('Error esperado: ' + (json.error && json.error.message));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [{"key": "Content-Type", "value": "application/json"}],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"{{adminEmail}}\",\n  \"password\": \"password-incorrecto-xyz\",\n  \"returnSecureToken\": true\n}"
+        },
+        "url": {
+          "raw": "https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key={{firebaseApiKey}}",
+          "protocol": "https",
+          "host": ["identitytoolkit", "googleapis", "com"],
+          "path": ["v1", "accounts:signInWithPassword"],
+          "query": [{"key": "key", "value": "{{firebaseApiKey}}"}]
+        },
+        "description": "Prueba negativa: con una contraseña incorrecta, la API debe responder con HTTP 400 y un objeto error con código INVALID_LOGIN_CREDENTIALS o similar. Demuestra que el sistema rechaza accesos no autorizados."
+      }
+    },
+    {
+      "name": "TF-04 — Listar productos SIN token (debe fallar 401)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 401 — Firestore rechaza sin auth', () => pm.expect(pm.response.code).to.be.oneOf([401, 403]));",
+              "const json = pm.response.json();",
+              "pm.test('Mensaje de error presente', () => pm.expect(json.error).to.exist);",
+              "console.log('Acceso bloqueado correctamente: ' + (json.error && json.error.status));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "https://firestore.googleapis.com/v1/projects/{{projectId}}/databases/(default)/documents/products",
+          "protocol": "https",
+          "host": ["firestore", "googleapis", "com"],
+          "path": ["v1", "projects", "{{projectId}}", "databases", "(default)", "documents", "products"]
+        },
+        "description": "Intenta leer la colección de productos sin enviar el header Authorization. Las reglas de Firestore (RNF-06) deben rechazar la petición con 401 o 403. Demuestra que el sistema no expone datos a usuarios no autenticados."
+      }
+    },
+    {
+      "name": "TF-05 — Listar productos CON token admin (debe pasar)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+              "const json = pm.response.json();",
+              "pm.test('Contiene array de documentos', () => pm.expect(json.documents).to.be.an('array').that.is.not.empty);",
+              "pm.test('Cada documento tiene campo name', () => {",
+              "  json.documents.slice(0, 5).forEach(d => pm.expect(d.fields).to.have.property('name'));",
+              "});",
+              "// Guarda el ID del primer producto para TF-06",
+              "const fullName = json.documents[0].name; // projects/.../documents/products/{id}",
+              "const productId = fullName.split('/').pop();",
+              "pm.collectionVariables.set('sampleProductId', productId);",
+              "console.log('Total productos: ' + json.documents.length);",
+              "console.log('Primer producto id: ' + productId);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [{"key": "Authorization", "value": "Bearer {{idToken}}"}],
+        "url": {
+          "raw": "https://firestore.googleapis.com/v1/projects/{{projectId}}/databases/(default)/documents/products",
+          "protocol": "https",
+          "host": ["firestore", "googleapis", "com"],
+          "path": ["v1", "projects", "{{projectId}}", "databases", "(default)", "documents", "products"]
+        },
+        "description": "Lectura del catálogo con el idToken obtenido en TF-01. Debe devolver HTTP 200 y un array de documentos con los 26 productos cargados por el script seed-products. Valida RF-04 (búsqueda de productos) por el lado del backend."
+      }
+    },
+    {
+      "name": "TF-06 — Obtener un producto específico (Coca-Cola)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+              "const json = pm.response.json();",
+              "pm.test('Documento tiene name', () => pm.expect(json.fields.name).to.exist);",
+              "pm.test('Documento tiene price', () => pm.expect(json.fields.price).to.exist);",
+              "pm.test('Documento tiene stock', () => pm.expect(json.fields.stock).to.exist);",
+              "pm.test('Documento tiene category', () => pm.expect(json.fields.category).to.exist);",
+              "console.log('Producto: ' + json.fields.name.stringValue);",
+              "console.log('Precio: $' + json.fields.price.doubleValue);",
+              "console.log('Stock: ' + json.fields.stock.integerValue);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [{"key": "Authorization", "value": "Bearer {{idToken}}"}],
+        "url": {
+          "raw": "https://firestore.googleapis.com/v1/projects/{{projectId}}/databases/(default)/documents/products/{{sampleProductId}}",
+          "protocol": "https",
+          "host": ["firestore", "googleapis", "com"],
+          "path": ["v1", "projects", "{{projectId}}", "databases", "(default)", "documents", "products", "{{sampleProductId}}"]
+        },
+        "description": "Lee un documento específico. Usa el productId capturado por TF-05. Valida que la estructura del documento contenga los campos requeridos: name, price, stock y category."
+      }
+    },
+    {
+      "name": "TF-07 — Listar ventas (sales)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+              "const json = pm.response.json();",
+              "if (json.documents) {",
+              "  pm.test('documents es array', () => pm.expect(json.documents).to.be.an('array'));",
+              "  console.log('Ventas registradas: ' + json.documents.length);",
+              "} else {",
+              "  pm.test('Sin ventas (respuesta vacía es válida)', () => pm.expect(json).to.deep.equal({}));",
+              "  console.log('Aún no se han registrado ventas — válido para el primer ciclo de pruebas');",
+              "}"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [{"key": "Authorization", "value": "Bearer {{idToken}}"}],
+        "url": {
+          "raw": "https://firestore.googleapis.com/v1/projects/{{projectId}}/databases/(default)/documents/sales",
+          "protocol": "https",
+          "host": ["firestore", "googleapis", "com"],
+          "path": ["v1", "projects", "{{projectId}}", "databases", "(default)", "documents", "sales"]
+        },
+        "description": "Consulta el histórico de ventas. Si todavía no hay ventas registradas, Firestore responde con objeto vacío (también válido). Cuando empiezas a hacer ventas desde el POS, este endpoint debe devolverlas en tiempo real."
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "firebaseApiKey",
+      "value": "AIzaSyCrZO32nsbkejZODYLyN06tekdOzVoQhXs",
+      "type": "string"
+    },
+    {
+      "key": "projectId",
+      "value": "abarrotesvera-cc2e1",
+      "type": "string"
+    },
+    {
+      "key": "adminEmail",
+      "value": "aracelivelasco28@gmail.com",
+      "type": "string"
+    },
+    {
+      "key": "adminPassword",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "cashierEmail",
+      "value": "velascoramirezaaron@gmail.com",
+      "type": "string"
+    },
+    {
+      "key": "cashierPassword",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "idToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "cashierToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "adminUid",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "cashierUid",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "sampleProductId",
+      "value": "",
+      "type": "string"
+    }
+  ]
+}

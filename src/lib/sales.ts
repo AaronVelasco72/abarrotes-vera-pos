@@ -15,16 +15,13 @@ import {
 import { useEffect, useState } from "react";
 import { getFirebase } from "./firebase";
 import type { CategoryKey } from "./categories";
+import type { CartLine } from "./cart";
+import type { PayMethod } from "./payment";
 
-export type PayMethod = "efectivo" | "tarjeta" | "transferencia";
+export type { PayMethod };
 
-export type SaleLine = {
-  productId: string;
-  name: string;
-  category: CategoryKey;
-  price: number;
-  qty: number;
-};
+/** Una línea de venta tiene la misma forma que una línea de carrito. */
+export type SaleLine = CartLine;
 
 export type Sale = {
   id: string;

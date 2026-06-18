@@ -7,3 +7,5 @@ out/
 .vercel
 service-account.json
 .claude/
+coverage/
+~$*

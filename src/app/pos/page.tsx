@@ -4,11 +4,19 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { formatMXN } from "@/lib/money";
 import { useProducts, type Product } from "@/lib/products";
-import { recordSale, type PayMethod, type SaleLine } from "@/lib/sales";
+import { recordSale } from "@/lib/sales";
+import {
+  addToCart,
+  changeQty as changeCartQty,
+  removeLine as removeCartLine,
+  cartTotal,
+  cartItemCount,
+  type CartLine,
+} from "@/lib/cart";
+import { calculateChange, canConfirmPayment, type PayMethod } from "@/lib/payment";
 import { CATEGORIES, CATEGORY_LIST, CategoryChip, type CategoryKey } from "@/lib/categories";
 import { Logo } from "@/components/Logo";
 
-type CartLine = SaleLine;
 type Filter = "all" | CategoryKey;
 
 export default function PosPage() {
@@ -38,28 +46,28 @@ export default function PosPage() {
       );
   }, [products, query, filter]);
 
-  const total = cart.reduce((s, l) => s + l.price * l.qty, 0);
-  const items = cart.reduce((s, l) => s + l.qty, 0);
+  const total = cartTotal(cart);
+  const items = cartItemCount(cart);
 
   function addProduct(p: Product) {
-    if (p.stock <= 0) {
-      flash("err", `${p.name}: sin stock`);
-      return;
-    }
     setCart((prev) => {
-      const existing = prev.find((l) => l.productId === p.id);
-      const newQty = (existing?.qty ?? 0) + 1;
-      if (newQty > p.stock) {
-        flash("err", `${p.name}: solo quedan ${p.stock}`);
+      const result = addToCart(prev, {
+        id: p.id,
+        name: p.name,
+        category: p.category,
+        price: p.price,
+        stock: p.stock,
+      });
+      if (!result.ok) {
+        flash(
+          "err",
+          result.reason === "out_of_stock"
+            ? `${p.name}: sin stock`
+            : `${p.name}: solo quedan ${result.available}`,
+        );
         return prev;
       }
-      if (existing) {
-        return prev.map((l) => (l.productId === p.id ? { ...l, qty: newQty } : l));
-      }
-      return [
-        ...prev,
-        { productId: p.id, name: p.name, category: p.category, price: p.price, qty: 1 },
-      ];
+      return result.cart;
     });
     setQuery("");
     searchRef.current?.focus();
@@ -67,23 +75,19 @@ export default function PosPage() {
 
   function changeQty(id: string, delta: number) {
     setCart((prev) => {
-      const p = products.find((x) => x.id === id);
-      return prev
-        .map((l) => {
-          if (l.productId !== id) return l;
-          const next = l.qty + delta;
-          if (delta > 0 && p && next > p.stock) {
-            flash("err", `${l.name}: solo quedan ${p.stock}`);
-            return l;
-          }
-          return { ...l, qty: next };
-        })
-        .filter((l) => l.qty > 0);
+      const stock = products.find((x) => x.id === id)?.stock ?? 0;
+      const line = prev.find((l) => l.productId === id);
+      const result = changeCartQty(prev, id, delta, stock);
+      if (!result.ok && line) {
+        flash("err", `${line.name}: solo quedan ${result.available}`);
+        return prev;
+      }
+      return result.ok ? result.cart : prev;
     });
   }
 
   function removeLine(id: string) {
-    setCart((prev) => prev.filter((l) => l.productId !== id));
+    setCart((prev) => removeCartLine(prev, id));
   }
 
   function clearCart() {
@@ -338,9 +342,11 @@ function PayModal({
   }, [onClose]);
 
   const received = parseFloat(receivedStr || "0");
-  const change = method === "efectivo" ? Math.max(0, received - total) : 0;
+  const change = calculateChange(method, total, received);
   const canConfirm =
-    !busy && (method !== "efectivo" || (received >= total && receivedStr.length > 0));
+    !busy &&
+    canConfirmPayment(method, total, received) &&
+    (method !== "efectivo" || receivedStr.length > 0);
 
   async function confirm() {
     if (!canConfirm) return;
