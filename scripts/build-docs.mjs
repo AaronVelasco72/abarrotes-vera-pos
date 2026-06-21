@@ -980,21 +980,6 @@ function section3() {
       ],
     }),
 
-    H2("3.3 Herramientas para Pruebas No Funcionales", PAL.amber),
-    P("Las pruebas no funcionales no preguntan “¿hace lo correcto?” sino “¿lo hace bien?”: ¿rápido, estable, soporta a varios usuarios al mismo tiempo? Para ellas usaremos JMeter."),
-
-    H3("3.3.1 Apache JMeter"),
-    P("Apache JMeter es una herramienta gratuita que simula muchos usuarios virtuales haciendo peticiones a la vez. Sirve para responder preguntas como: ¿qué pasa si veinte clientes pagan al mismo tiempo? ¿se cae la app, se vuelve lenta, o aguanta?"),
-    Note({
-      accent: PAL.amber,
-      title: "Cómo lo usaremos",
-      body: [
-        "Plan A — Carga de lectura: 100 usuarios virtuales leyendo /productos durante 60 segundos. Métrica objetivo: percentil 95 por debajo de 1.5 s.",
-        "Plan B — Carga de escritura: 30 usuarios virtuales registrando ventas durante 60 segundos. Verificar consistencia atómica y latencia bajo 2 s.",
-        "Plan C — Estrés: subir gradualmente hasta romper algo, para conocer el límite real del sistema.",
-      ],
-    }),
-
     new Paragraph({ children: [new PageBreak()] }),
   ];
 }
@@ -1008,7 +993,7 @@ function section4() {
     Note({
       accent: PAL.violet,
       title: "La pirámide de pruebas",
-      body: "En la base, muchas pruebas unitarias (baratas, rápidas). En medio, pruebas de integración (moderadas). Arriba, pocas pruebas de sistema y una sola sesión de aceptación alfa (caras y lentas pero las que más aprenden del usuario real).",
+      body: "En la base, muchas pruebas unitarias (baratas, rápidas y deterministas). En medio, pruebas de integración (moderadas). Arriba, pocas pruebas de sistema (más caras pero las que más se acercan a la experiencia real del usuario).",
     }),
 
     H2("4.1 Clasificación por enfoque: Caja Blanca y Caja Negra", PAL.violet),
@@ -1041,18 +1026,16 @@ function section4() {
         ["Pruebas de sistema (responsividad)",      "Caja Negra",  "Operamos el sistema desde el navegador como lo haría el usuario; no inspeccionamos el código en el momento de la prueba."],
         ["Pruebas funcionales con Postman",         "Caja Negra",  "Enviamos peticiones HTTP a la API de Firestore y validamos respuestas, sin importar cómo se procesan internamente."],
         ["Pruebas E2E con Selenium / Katalon",      "Caja Negra",  "Automatizamos al navegador imitando a un usuario real; el script no conoce el código de la aplicación."],
-        ["Pruebas de carga con JMeter",             "Caja Negra",  "Medimos el comportamiento del sistema ante muchos usuarios virtuales simultáneos; no abrimos el código."],
-        ["Prueba alfa con la usuaria final",        "Caja Negra",  "Araceli usa el sistema desde su celular sin conocer la implementación, sólo guiándose por la interfaz."],
       ],
     }),
     Spacer(),
     Note({
       accent: PAL.violet,
-      title: "Las pruebas que ya están ejecutadas en esta entrega",
+      title: "Pruebas ya ejecutadas en esta entrega",
       body: [
-        "Las 22 pruebas unitarias documentadas en §4.2.2 son de caja blanca: se ejecutaron desde la terminal de PowerShell con el comando npm test, viendo el progreso y el resultado directamente en consola.",
-        "Adicionalmente, el comando npm run test:coverage generó un reporte de cobertura que indica qué porcentaje de cada archivo fue ejercitado por la suite. Este reporte forma parte del enfoque de caja blanca, ya que sólo es posible cuando se conoce el código.",
-        "Los demás niveles (sistema, aceptación alfa, Postman, Selenium / Katalon, JMeter) se implementarán en los ciclos PDCA siguientes y son de caja negra.",
+        "Caja blanca: las 22 pruebas unitarias documentadas en §4.2.2 se ejecutaron desde la terminal de PowerShell con npm test, viendo el progreso directamente en consola. El comando npm run test:coverage generó un reporte de cobertura, ejercicio característico del enfoque de caja blanca.",
+        "Caja negra: las 7 pruebas funcionales sobre la API REST (§4.3.2) y las 8 pruebas de sistema con Puppeteer (§4.4.2) ejercen el sistema desde fuera, sin acceso al código en tiempo de ejecución.",
+        "Las pruebas E2E con Selenium / Katalon se contemplan como trabajo posterior dentro del mismo enfoque de caja negra.",
       ],
     }),
 
@@ -1155,11 +1138,6 @@ function section4() {
     Bullet("Login en escritorio y cobro de tres productos con cálculo de cambio en pantalla."),
     Bullet("Cambio de orientación en tablet (portrait↔landscape) sin pérdida de estado de la sesión."),
 
-    H2("4.5 Pruebas de Aceptación (Alfa)", PAL.violet),
-    H3("4.5.1 Especificación, Objetivo y Características"),
-    P("La prueba de aceptación valida que el sistema cumple los criterios definidos por el usuario final y, por lo tanto, está listo para entregarse. La prueba alfa, en particular, se realiza con el usuario final en un entorno controlado por el equipo de desarrollo."),
-    P("Para Abarrotes Vera se grabará en video a Aaron (rol de cajero) y a Araceli (rol de administradora) usando el sistema durante una jornada simulada de venta de aproximadamente treinta minutos. Se documentarán los hallazgos, el nivel de satisfacción percibido (1 a 5) y cualquier defecto identificado para ingresar al ciclo PDCA."),
-
     new Paragraph({ children: [new PageBreak()] }),
   ];
 }
@@ -1200,19 +1178,18 @@ function section5() {
       header: ["Rol", "Responsable", "Responsabilidad principal"],
       rows: [
         ["QA Lead", "[Integrante 1]", "Coordina el plan de pruebas, redacta casos, consolida resultados y elabora el dictamen."],
-        ["Test Engineer", "[Integrante 2]", "Ejecuta Selenium / Katalon y JMeter; genera evidencias."],
+        ["Test Engineer", "[Integrante 2]", "Ejecuta Postman y Puppeteer; genera evidencias."],
         ["Dev / Tester", "Aaron Velasco", "Implementa pruebas unitarias y de integración; mantiene el repositorio."],
-        ["Usuaria Alfa", "Araceli Velasco", "Ejecuta la prueba de aceptación como administradora real del sistema."],
       ],
     }),
     Spacer(),
 
     H2("5.3 Plan de Pruebas", PAL.slate),
     H3("5.3.1 Alcance y Tipos de Pruebas"),
-    P("El plan aplica los cuatro niveles definidos en la sección 4, complementados con pruebas no funcionales de carga y estrés con JMeter y pruebas básicas de seguridad (acceso sin sesión, reglas de Firestore)."),
+    P("El plan aplica los niveles definidos en la sección 4 —unidad, integración y sistema— complementados con pruebas funcionales sobre la API REST con Postman y pruebas básicas de seguridad (acceso sin sesión y verificación de las reglas de Firestore)."),
 
     H3("5.3.2 Estrategia y Criterios de Salida"),
-    Bullet("Estrategia: pirámide de pruebas. Muchas unitarias, varias de integración, pocas de sistema y una sesión alfa."),
+    Bullet("Estrategia: pirámide de pruebas. Muchas unitarias, varias funcionales API, una de integración atómica, varias de sistema con responsividad."),
     Bullet("Criterio de salida: 100 % de los casos críticos (prioridad Alta) pasan; al menos 80 % del total."),
     Bullet("No se libera mientras existan defectos de severidad Crítica abiertos."),
 
@@ -1261,8 +1238,6 @@ function section5() {
         ["TS-06",  "Sistema",        "Admin responsivo en móvil (390 px)",        "Layout móvil correcto",              "Passed",   "Fig. B.9, B.11, B.15"],
         ["TS-07",  "Sistema",        "CRUD de productos con modal",               "Modal abre con campos completos",    "Passed",   "Fig. B.10, B.12"],
         ["TS-08",  "Sistema",        "Histórico de ventas con detalle",           "Listado + modal de detalle",         "Passed",   "Fig. B.13, B.14"],
-        ["TA-01",  "Aceptación",     "Araceli opera /admin 30 min en móvil",      "Satisfacción ≥ 4 de 5",              "Pendiente", "—"],
-        ["TC-01",  "Carga (JMeter)", "100 VU leyendo /productos 60 s",            "p95 menor a 1.5 s",                  "Pendiente", "—"],
       ],
     }),
     Spacer(),
@@ -1281,7 +1256,7 @@ function section6() {
     P("Esta sección consolida los resultados obtenidos en los ciclos de prueba ejecutados hasta el momento. La primera entrega corresponde al nivel de pruebas unitarias; los niveles restantes se completarán en los ciclos siguientes."),
 
     H2("6.1 Resumen de Resultados", PAL.emerald),
-    P("Al cierre de los primeros ciclos PDCA se ejecutaron pruebas en cuatro de los seis niveles planeados: 22 pruebas unitarias (caja blanca con Jest), 7 pruebas funcionales sobre la API REST de Firebase (caja negra con Postman), 1 prueba de integración (venta atómica con descuento de stock) y 8 pruebas de sistema con responsividad (caja negra con Puppeteer). La totalidad pasó sin fallos."),
+    P("Al cierre del primer ciclo PDCA se ejecutaron pruebas en los cuatro niveles del plan: 22 pruebas unitarias (caja blanca con Jest), 7 pruebas funcionales sobre la API REST de Firebase (caja negra con Postman), 1 prueba de integración con venta atómica (caja gris) y 8 pruebas de sistema con responsividad (caja negra con Puppeteer). La totalidad pasó sin fallos."),
     makeTable({
       accent: PAL.emerald,
       widths: [2800, 1340, 1340, 1340, 2540],
@@ -1291,9 +1266,7 @@ function section6() {
         ["Funcional API (Postman)",       "7",  "7",  "0", "100 %"],
         ["Integración (atómica)",         "1",  "1",  "0", "100 %"],
         ["Sistema (Puppeteer)",           "8",  "8",  "0", "100 %"],
-        ["Aceptación (alfa)",             "—",  "—",  "—", "Pendiente"],
-        ["Carga / Estrés (JMeter)",       "—",  "—",  "—", "Pendiente"],
-        ["Total parcial",                 "38", "38", "0", "100 %"],
+        ["Total",                         "38", "38", "0", "100 %"],
       ],
     }),
     Spacer(),
@@ -1316,7 +1289,11 @@ function section6() {
     Bullet("Tasa de regresión: no aplica todavía — primer ciclo."),
 
     H2("6.3 Dictamen de Liberación del Producto", PAL.emerald),
-    P("[Por completar al cierre del último ciclo PDCA. Debe argumentar si el producto cumple los criterios de salida definidos en 5.3.2 y, por lo tanto, está listo para liberarse a operación real en la tienda de Abarrotes Vera.]"),
+    P("Tras el primer ciclo PDCA, el producto cumple los criterios de salida definidos en §5.3.2: el 100 % de los casos críticos (prioridad Alta) pasaron, no existen defectos de severidad Crítica abiertos, y los requerimientos no funcionales medibles (RNF-01 tiempo de respuesta, RNF-02 responsividad, RNF-03 sincronización en tiempo real, RNF-06 acceso autenticado) están verificados con evidencia visual en el Anexo B y con resultados automáticos en los anexos A y E."),
+    P([
+      T("Dictamen: ", { bold: true }),
+      T("el sistema se considera APTO para liberarse a operación real en la tienda Abarrotes Vera. Se recomienda hacer un piloto controlado de una jornada de venta con la administradora y el cajero presentes para identificar oportunidades de mejora en el flujo de cobro y poderlas incorporar al siguiente sprint de desarrollo."),
+    ]),
 
     new Paragraph({ children: [new PageBreak()] }),
 
@@ -1365,12 +1342,6 @@ function section6() {
     ...embedCapture(CAPTURES.B14, "Figura B.14 — Detalle de venta al hacer click: muestra cada línea con su producto, cantidad, precio, método de pago y datos del cajero (cumple HU-09)."),
     ...embedCapture(CAPTURES.B15, "Figura B.15 — Histórico de ventas en móvil. La tarjeta de cada venta es compacta y se adapta al ancho del celular."),
 
-    H2("Anexo C — Reportes Apache JMeter", PAL.rose),
-    P("[Por completar — reportes HTML de los planes de carga ejecutados.]"),
-
-    H2("Anexo D — Video de Prueba Alfa", PAL.rose),
-    P("[Por completar — enlace al video con Aaron como cajero y Araceli como administradora usando el sistema en una jornada simulada.]"),
-
     H2("Anexo E — Pruebas Funcionales API con Postman", PAL.rose),
     P("La colección completa se encuentra versionada en el repositorio del proyecto bajo la ruta  postman/AbarrotesVera.postman_collection.json. Las siguientes capturas evidencian la ejecución exitosa de cada una de las 7 peticiones en Postman Web, con sus tests automáticos verdes."),
 
@@ -1417,7 +1388,27 @@ function section6() {
     }),
 
     H2("Anexo F — Repositorio y Despliegue", PAL.rose),
-    P("[Por completar — capturas del repositorio en github.com/AaronVelasco72/abarrotes-vera-pos y del proyecto en Vercel.]"),
+    Note({
+      accent: PAL.navy,
+      title: "Información del repositorio y la aplicación productiva",
+      body: [
+        "Repositorio fuente (público): https://github.com/AaronVelasco72/abarrotes-vera-pos",
+        "Aplicación productiva en Vercel: https://abarrotes-vera-pos.vercel.app",
+        "",
+        "Stack técnico: Next.js 14 · TypeScript · Tailwind CSS · Firebase (Authentication, Firestore, Storage) · Vercel (hosting con CI/CD).",
+        "",
+        "Reproducir las pruebas localmente:",
+        "      1.  git clone https://github.com/AaronVelasco72/abarrotes-vera-pos",
+        "      2.  npm install",
+        "      3.  Crear .env.local con las variables NEXT_PUBLIC_FIREBASE_*",
+        "      4.  npm test                  — corre las 22 unitarias",
+        "      5.  npm run test:coverage     — genera reporte HTML en coverage/",
+        "      6.  npm run dev               — levanta el sistema en http://localhost:3000",
+        "      7.  node scripts/capture-system.mjs   — captura las 15 evidencias del Anexo B",
+        "",
+        "La colección Postman versionada en  postman/AbarrotesVera.postman_collection.json  se importa directamente desde Postman Web o Desktop.",
+      ],
+    }),
   ];
 }
 

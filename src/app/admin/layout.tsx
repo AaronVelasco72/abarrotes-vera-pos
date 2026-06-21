@@ -66,9 +66,33 @@ const SettingsIcon = (active: boolean) => (
   </svg>
 );
 
+const TruckIcon = (active: boolean) => (
+  <svg viewBox="0 0 24 24" fill="none" className="size-6" aria-hidden>
+    <path
+      d="M3 7h11v9H3z"
+      stroke="currentColor"
+      strokeWidth={1.7}
+      strokeLinejoin="round"
+      fill={active ? "currentColor" : "none"}
+      fillOpacity={active ? 0.15 : 0}
+    />
+    <path
+      d="M14 10h4l3 3v3h-7z"
+      stroke="currentColor"
+      strokeWidth={1.7}
+      strokeLinejoin="round"
+      fill={active ? "currentColor" : "none"}
+      fillOpacity={active ? 0.15 : 0}
+    />
+    <circle cx="7" cy="18" r="2" stroke="currentColor" strokeWidth={1.7} />
+    <circle cx="17" cy="18" r="2" stroke="currentColor" strokeWidth={1.7} />
+  </svg>
+);
+
 const nav: NavItem[] = [
   { href: "/admin",           label: "Inicio",    icon: HomeIcon },
   { href: "/admin/productos", label: "Productos", icon: ProductIcon },
+  { href: "/admin/pedidos",   label: "Pedidos",   icon: TruckIcon },
   { href: "/admin/ventas",    label: "Ventas",    icon: SalesIcon },
   { href: "/admin/ajustes",   label: "Ajustes",   icon: SettingsIcon },
 ];
@@ -100,7 +124,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       <main className="px-4 py-5 max-w-3xl mx-auto">{children}</main>
 
       {/* Bottom nav (mobile-first) */}
-      <nav className="fixed bottom-0 inset-x-0 bg-white/95 backdrop-blur border-t border-brand-100 grid grid-cols-4 z-30 pb-[env(safe-area-inset-bottom)]">
+      <nav className="fixed bottom-0 inset-x-0 bg-white/95 backdrop-blur border-t border-brand-100 grid grid-cols-5 z-30 pb-[env(safe-area-inset-bottom)]">
         {nav.map((item) => {
           const active = pathname === item.href;
           return (

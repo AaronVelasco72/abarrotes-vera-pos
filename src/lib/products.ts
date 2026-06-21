@@ -19,7 +19,13 @@ export type Product = {
   price: number;
   stock: number;
   minStock: number;
+  /** Cantidad ideal a mantener en piso. Se usa para armar pedidos a proveedores. */
+  idealStock?: number;
   category: CategoryKey;
+  /** Nombre del proveedor (Coca-Cola FEMSA, Modelo, etc). */
+  supplier?: string;
+  /** Gramaje o presentación (600 ml, 1 kg, etc). */
+  quantity?: string;
   imageUrl?: string;
   createdAt?: Timestamp;
   updatedAt?: Timestamp;
