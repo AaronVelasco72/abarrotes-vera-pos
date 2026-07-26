@@ -16,7 +16,10 @@ export type Product = {
   name: string;
   sku?: string;
   barcode?: string;
+  /** Precio al que se le vende al cliente. */
   price: number;
+  /** Precio al que se compra al proveedor. Se usa para calcular el margen. */
+  costPrice?: number;
   stock: number;
   minStock: number;
   /** Cantidad ideal a mantener en piso. Se usa para armar pedidos a proveedores. */
@@ -30,6 +33,23 @@ export type Product = {
   createdAt?: Timestamp;
   updatedAt?: Timestamp;
 };
+
+/** True cuando el producto se acaba de crear pero aún no tiene stock real ni precio de compra. */
+export function isProductUninitialized(p: Product): boolean {
+  return p.stock === 1 && (p.costPrice == null || p.costPrice <= 0);
+}
+
+/** Ganancia bruta por pieza. null si no hay costPrice válido. */
+export function productMargin(p: Product): number | null {
+  if (p.costPrice == null || p.costPrice <= 0) return null;
+  return p.price - p.costPrice;
+}
+
+/** Porcentaje de margen sobre el costo. null si no hay costPrice válido. */
+export function productMarginPct(p: Product): number | null {
+  if (p.costPrice == null || p.costPrice <= 0) return null;
+  return ((p.price - p.costPrice) / p.costPrice) * 100;
+}
 
 export function useProducts() {
   const [products, setProducts] = useState<Product[]>([]);
