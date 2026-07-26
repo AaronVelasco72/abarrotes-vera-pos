@@ -1,0 +1,242 @@
+// Generates the "Cerillo" promotional poster.
+// Output: assets/promo-cerillo.png (portrait 1080x1350 — social-ready)
+// Run:    node scripts/make-promo-cerillo.mjs
+
+import sharp from "sharp";
+import { mkdirSync, existsSync, writeFileSync } from "node:fs";
+import { resolve, dirname } from "node:path";
+import { fileURLToPath } from "node:url";
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const outDir = resolve(__dirname, "..", "assets");
+if (!existsSync(outDir)) mkdirSync(outDir, { recursive: true });
+
+const SVG = `
+<svg width="1080" height="1350" viewBox="0 0 1080 1350" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#7F1D1D"/>
+      <stop offset="0.45" stop-color="#B91C1C"/>
+      <stop offset="1" stop-color="#F97316"/>
+    </linearGradient>
+    <radialGradient id="sunburst" cx="0.5" cy="0.55" r="0.6">
+      <stop offset="0" stop-color="#FDE68A" stop-opacity="0.55"/>
+      <stop offset="1" stop-color="#FDE68A" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="canBody" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0"    stop-color="#450A0A"/>
+      <stop offset="0.15" stop-color="#7F1D1D"/>
+      <stop offset="0.4"  stop-color="#B91C1C"/>
+      <stop offset="0.55" stop-color="#DC2626"/>
+      <stop offset="0.75" stop-color="#B91C1C"/>
+      <stop offset="1"    stop-color="#450A0A"/>
+    </linearGradient>
+    <linearGradient id="canTop" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0"   stop-color="#52525B"/>
+      <stop offset="0.5" stop-color="#E4E4E7"/>
+      <stop offset="1"   stop-color="#52525B"/>
+    </linearGradient>
+    <linearGradient id="badgeGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FEF3C7"/>
+      <stop offset="1" stop-color="#FDE047"/>
+    </linearGradient>
+    <pattern id="dots" x="0" y="0" width="40" height="40" patternUnits="userSpaceOnUse">
+      <circle cx="20" cy="20" r="1.6" fill="#FEF3C7" opacity="0.16"/>
+    </pattern>
+  </defs>
+
+  <!-- background -->
+  <rect width="1080" height="1350" fill="url(#bg)"/>
+  <rect width="1080" height="1350" fill="url(#dots)"/>
+
+  <!-- radial sunburst rays from center -->
+  <g transform="translate(540 700)" opacity="0.42">
+    <g fill="#FBBF24">
+      <polygon points="-60,-900 60,-900 40,0 -40,0"/>
+      <polygon points="-60,-900 60,-900 40,0 -40,0" transform="rotate(30)"/>
+      <polygon points="-60,-900 60,-900 40,0 -40,0" transform="rotate(60)"/>
+      <polygon points="-60,-900 60,-900 40,0 -40,0" transform="rotate(90)"/>
+      <polygon points="-60,-900 60,-900 40,0 -40,0" transform="rotate(120)"/>
+      <polygon points="-60,-900 60,-900 40,0 -40,0" transform="rotate(150)"/>
+      <polygon points="-60,-900 60,-900 40,0 -40,0" transform="rotate(180)"/>
+      <polygon points="-60,-900 60,-900 40,0 -40,0" transform="rotate(210)"/>
+      <polygon points="-60,-900 60,-900 40,0 -40,0" transform="rotate(240)"/>
+      <polygon points="-60,-900 60,-900 40,0 -40,0" transform="rotate(270)"/>
+      <polygon points="-60,-900 60,-900 40,0 -40,0" transform="rotate(300)"/>
+      <polygon points="-60,-900 60,-900 40,0 -40,0" transform="rotate(330)"/>
+    </g>
+  </g>
+  <ellipse cx="540" cy="700" rx="430" ry="430" fill="url(#sunburst)"/>
+
+  <!-- ── TOP: '¿YA LOS PROBASTE?' pill ── -->
+  <g transform="translate(540 140)">
+    <g transform="rotate(-4)">
+      <rect x="-360" y="-60" width="720" height="120" rx="60" fill="#FEF3C7" stroke="#7C2D12" stroke-width="6"/>
+      <text x="0" y="20" font-family="Impact, 'Arial Black', sans-serif" font-size="70" text-anchor="middle" fill="#7C2D12" font-weight="900" letter-spacing="2">¿YA LOS PROBASTE?</text>
+    </g>
+  </g>
+
+  <!-- ── THE CAN ── centered around (540, 700) -->
+  <g transform="translate(540 700)">
+    <!-- floor shadow -->
+    <ellipse cx="0" cy="285" rx="220" ry="22" fill="#450A0A" opacity="0.55"/>
+
+    <!-- can body -->
+    <path d="M -140 -260 L -140 250 Q -140 275 -110 278 L 110 278 Q 140 275 140 250 L 140 -260 Z"
+          fill="url(#canBody)"/>
+
+    <!-- can top ring (dark) -->
+    <ellipse cx="0" cy="-260" rx="140" ry="22" fill="#3F3F46"/>
+    <!-- silver top -->
+    <ellipse cx="0" cy="-262" rx="128" ry="18" fill="url(#canTop)"/>
+    <!-- opening tab -->
+    <ellipse cx="0" cy="-268" rx="14" ry="6" fill="#71717A"/>
+    <rect x="-30" y="-274" width="60" height="8" rx="4" fill="#A1A1AA"/>
+
+    <!-- CHAMOY escarchado rim (wavy edge dripping into can) -->
+    <path d="M -138 -252
+             C -125 -228 -110 -256 -95 -238
+             C -75 -258 -55 -234 -35 -252
+             C -15 -234 5 -258 25 -238
+             C 45 -258 65 -234 85 -252
+             C 105 -234 120 -256 138 -246
+             L 138 -215 L -138 -215 Z"
+          fill="#B91C1C"/>
+    <path d="M -138 -244
+             C -125 -220 -110 -248 -95 -230
+             C -75 -250 -55 -226 -35 -244
+             C -15 -226 5 -250 25 -230
+             C 45 -250 65 -226 85 -244
+             C 105 -226 120 -248 138 -238
+             L 138 -215 L -138 -215 Z"
+          fill="#DC2626" opacity="0.9"/>
+
+    <!-- salt/sugar crystals on rim -->
+    <g fill="#FEF3C7">
+      <circle cx="-118" cy="-238" r="2.4"/>
+      <circle cx="-100" cy="-224" r="3"/>
+      <circle cx="-82"  cy="-242" r="2"/>
+      <circle cx="-62"  cy="-220" r="3.4"/>
+      <circle cx="-46"  cy="-235" r="2.4"/>
+      <circle cx="-24"  cy="-222" r="3"/>
+      <circle cx="-6"   cy="-238" r="2.6"/>
+      <circle cx="14"   cy="-222" r="3.2"/>
+      <circle cx="34"   cy="-236" r="2.4"/>
+      <circle cx="52"   cy="-224" r="3"/>
+      <circle cx="72"   cy="-240" r="2.6"/>
+      <circle cx="92"   cy="-222" r="3"/>
+      <circle cx="110"  cy="-236" r="2.4"/>
+      <circle cx="126"  cy="-224" r="2.8"/>
+    </g>
+
+    <!-- chile flakes over rim -->
+    <g fill="#7C2D12">
+      <path d="M -108 -228 l 4 -2 l 2 4 l -4 2 z"/>
+      <path d="M -78  -220 l 3 -3 l 3 3 l -3 3 z"/>
+      <path d="M -40  -225 l 4 -2 l 2 4 l -4 2 z"/>
+      <path d="M -10  -220 l 3 -2 l 2 3 l -3 2 z"/>
+      <path d="M 20   -228 l 3 -3 l 3 3 l -3 3 z"/>
+      <path d="M 60   -220 l 4 -2 l 2 4 l -4 2 z"/>
+      <path d="M 96   -228 l 3 -3 l 3 3 l -3 3 z"/>
+    </g>
+
+    <!-- Chamoy drip on right side -->
+    <path d="M 92 -220
+             Q 96 -170 88 -130
+             Q 84 -80  94 -30
+             Q 90  20  86  70
+             Q 92 110  84 140"
+          stroke="#B91C1C" stroke-width="14" fill="none" stroke-linecap="round" opacity="0.9"/>
+    <ellipse cx="86" cy="152" rx="16" ry="20" fill="#B91C1C" opacity="0.9"/>
+    <circle cx="82" cy="180" r="8" fill="#B91C1C" opacity="0.7"/>
+
+    <!-- Chamoy drip on left side -->
+    <path d="M -90 -218
+             Q -100 -180 -88 -140
+             Q -78 -100 -92 -70"
+          stroke="#B91C1C" stroke-width="10" fill="none" stroke-linecap="round" opacity="0.85"/>
+    <ellipse cx="-92" cy="-58" rx="10" ry="14" fill="#B91C1C" opacity="0.85"/>
+
+    <!-- LABEL -->
+    <rect x="-138" y="-95" width="276" height="230" fill="#7F1D1D" opacity="0.55"/>
+    <rect x="-138" y="-95" width="276" height="16" fill="#FDE047"/>
+    <rect x="-138" y="120" width="276" height="15" fill="#FDE047"/>
+
+    <!-- Big "V" -->
+    <text x="0" y="55" font-family="Georgia, 'Times New Roman', serif" font-size="200" text-anchor="middle" fill="#FDE047" font-weight="900" font-style="italic">V</text>
+    <text x="0" y="105" font-family="Arial Black, sans-serif" font-size="24" text-anchor="middle" fill="#FEF3C7" letter-spacing="6" font-weight="900">VICTORIA</text>
+
+    <!-- highlight left edge -->
+    <path d="M -125 -240 L -125 260" stroke="#FEF3C7" stroke-width="6" opacity="0.18" fill="none"/>
+    <path d="M -115 -240 L -115 260" stroke="#FEF3C7" stroke-width="12" opacity="0.10" fill="none"/>
+    <!-- dark right edge -->
+    <path d="M 125 -240 L 125 260" stroke="#171717" stroke-width="14" opacity="0.35" fill="none"/>
+  </g>
+
+  <!-- ── DECORATIVE lime slice bottom-left ── -->
+  <g transform="translate(180 940) rotate(-15)">
+    <circle r="72" fill="#84CC16"/>
+    <circle r="63" fill="#D9F99D"/>
+    <g stroke="#65A30D" stroke-width="3" stroke-linecap="round">
+      <line x1="-55" y1="0" x2="55" y2="0"/>
+      <line x1="0" y1="-55" x2="0" y2="55"/>
+      <line x1="-40" y1="-40" x2="40" y2="40"/>
+      <line x1="-40" y1="40" x2="40" y2="-40"/>
+    </g>
+    <circle r="10" fill="#84CC16"/>
+    <ellipse cx="0" cy="0" rx="18" ry="4" fill="#65A30D" opacity="0.35"/>
+  </g>
+
+  <!-- ── DECORATIVE chile bottom-right ── -->
+  <g transform="translate(890 970) rotate(28)">
+    <path d="M -8 -60 Q 26 -32 22 8 Q 20 55 -8 92 Q -22 108 -34 90 Q -22 44 -18 4 Q -14 -32 -8 -60 Z"
+          fill="#DC2626"/>
+    <path d="M -8 -60 Q 26 -32 22 8 Q 20 55 -8 92 Q -22 108 -34 90 Q -22 44 -18 4 Q -14 -32 -8 -60 Z"
+          fill="none" stroke="#7F1D1D" stroke-width="2.5"/>
+    <path d="M -8 -60 L -4 -82 L -18 -86 L -14 -68 Z" fill="#166534"/>
+    <path d="M -6 -60 Q 12 -30 12 10" stroke="#FEF3C7" stroke-width="4" fill="none" opacity="0.4" stroke-linecap="round"/>
+  </g>
+
+  <!-- ── BIG PRICE BADGE ── -->
+  <g transform="translate(820 260)">
+    <g transform="rotate(14)">
+      <circle r="130" fill="url(#badgeGrad)"/>
+      <circle r="130" fill="none" stroke="#7C2D12" stroke-width="6"/>
+      <circle r="118" fill="none" stroke="#7C2D12" stroke-width="2" stroke-dasharray="4 6"/>
+      <text y="-28" font-family="Impact, Arial Black, sans-serif" font-size="32" text-anchor="middle" fill="#7C2D12" font-weight="900" letter-spacing="1">POR SOLO</text>
+      <text y="72" font-family="Impact, Arial Black, sans-serif" font-size="140" text-anchor="middle" fill="#7C2D12" font-weight="900">$7</text>
+    </g>
+  </g>
+
+  <!-- ── BOTTOM message ── -->
+  <g transform="translate(540 1200)">
+    <rect x="-450" y="-50" width="900" height="100" rx="20" fill="#171717" opacity="0.55"/>
+    <text y="0" font-family="Impact, Arial Black, sans-serif" font-size="56" text-anchor="middle" fill="#FDE047" font-weight="900" letter-spacing="4">LLÉVATE TU CERILLO</text>
+    <text y="42" font-family="Arial, sans-serif" font-size="22" text-anchor="middle" fill="#FEF3C7" letter-spacing="5" font-style="italic">lata escarchada · Modelo o Victoria</text>
+  </g>
+
+  <!-- ── BRAND at bottom right ── -->
+  <g transform="translate(1050 1320)">
+    <text x="0" y="-4" font-family="Georgia, serif" font-size="22" text-anchor="end" fill="#FEF3C7" font-weight="700" letter-spacing="2">Abarrotes Vera</text>
+    <text x="0" y="18" font-family="Arial, sans-serif" font-size="12" text-anchor="end" fill="#FEF3C7" opacity="0.7" letter-spacing="1">Nezahualcóyotl · CDMX</text>
+  </g>
+</svg>
+`.trim();
+
+// Also save the SVG source for editing
+writeFileSync(resolve(outDir, "promo-cerillo.svg"), SVG);
+
+const png = await sharp(Buffer.from(SVG))
+  .resize(1080, 1350, { fit: "fill" })
+  .png()
+  .toBuffer();
+const path = resolve(outDir, "promo-cerillo.png");
+writeFileSync(path, png);
+console.log(`✅  ${path}  (${(png.length / 1024).toFixed(1)} KB, 1080×1350 px)`);
+
+// Also a story/status variant (9:16 for WhatsApp/Instagram Story)
+const storySvg = SVG.replace("1350", "1920").replace("viewBox=\"0 0 1080 1350\"", "viewBox=\"0 0 1080 1920\"");
+const storyPng = await sharp(Buffer.from(storySvg)).resize(1080, 1920, { fit: "fill" }).png().toBuffer();
+const storyPath = resolve(outDir, "promo-cerillo-story.png");
+writeFileSync(storyPath, storyPng);
+console.log(`✅  ${storyPath}  (${(storyPng.length / 1024).toFixed(1)} KB, 1080×1920 px story)`);
