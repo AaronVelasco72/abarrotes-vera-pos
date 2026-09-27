@@ -9,16 +9,29 @@ function withTimeout<T>(p: Promise<T>, ms: number, msg: string): Promise<T> {
   return new Promise<T>((resolve, reject) => {
     const t = setTimeout(() => reject(new Error(msg)), ms);
     p.then(
-      (v) => {
-        clearTimeout(t);
-        resolve(v);
-      },
-      (e) => {
-        clearTimeout(t);
-        reject(e);
-      },
+      (v) => { clearTimeout(t); resolve(v); },
+      (e) => { clearTimeout(t); reject(e); },
     );
   });
+}
+
+/** Comprime la imagen antes de subir: max 800px y ~200 KB. */
+async function compressImage(file: File): Promise<File> {
+  // dynamic import: solo pesa cuando se sube foto
+  const { default: imageCompression } = await import("browser-image-compression");
+  try {
+    const compressed = await imageCompression(file, {
+      maxSizeMB: 0.25,        // ~250 KB target
+      maxWidthOrHeight: 800,  // suficiente para las cards
+      useWebWorker: true,
+      fileType: "image/webp", // WebP: 30% menos peso que JPEG
+      initialQuality: 0.82,
+    });
+    return compressed;
+  } catch {
+    // si falla la compresión, sube el original
+    return file;
+  }
 }
 
 export async function uploadProductImage(
@@ -27,12 +40,13 @@ export async function uploadProductImage(
 ): Promise<string> {
   const fb = getFirebase();
   if (!fb) throw new Error("Firebase no inicializado");
-  const ext = (file.name.split(".").pop() || "jpg").toLowerCase();
+  const optimized = await compressImage(file);
+  const ext = optimized.type === "image/webp" ? "webp" : (file.name.split(".").pop() || "jpg").toLowerCase();
   const path = `products/${productId}/main-${Date.now()}.${ext}`;
   const r = ref(fb.storage, path);
   try {
     await withTimeout(
-      uploadBytes(r, file, { contentType: file.type || "image/jpeg" }),
+      uploadBytes(r, optimized, { contentType: optimized.type || "image/webp" }),
       UPLOAD_TIMEOUT_MS,
       "La subida de la imagen tardó demasiado. Revisa que Firebase Storage esté habilitado y que las reglas permitan escribir.",
     );
@@ -40,14 +54,10 @@ export async function uploadProductImage(
   } catch (e) {
     const err = e as Error & { code?: string };
     if (err.code === "storage/unauthorized") {
-      throw new Error(
-        "Storage rechazó la subida. Pega las reglas de storage.rules en Firebase Console → Storage → Reglas.",
-      );
+      throw new Error("Storage rechazó la subida. Pega las reglas de storage.rules en Firebase Console.");
     }
     if (err.code === "storage/unknown" || err.message?.includes("storage")) {
-      throw new Error(
-        "No se pudo conectar con Firebase Storage. Habilítalo en Firebase Console → Storage → Comenzar.",
-      );
+      throw new Error("No se pudo conectar con Firebase Storage. Habilítalo en Firebase Console → Storage → Comenzar.");
     }
     throw err;
   }
@@ -62,4 +72,22 @@ export async function deleteFromUrl(url: string): Promise<void> {
   } catch {
     // best-effort
   }
+}
+
+/** Upload genérico ya comprimido (para tickets en /admin/registros). */
+export async function uploadCompressed(
+  path: string,
+  file: File,
+  { compress = true }: { compress?: boolean } = {},
+): Promise<string> {
+  const fb = getFirebase();
+  if (!fb) throw new Error("Firebase no inicializado");
+  const finalFile = compress ? await compressImage(file) : file;
+  const r = ref(fb.storage, path);
+  await withTimeout(
+    uploadBytes(r, finalFile, { contentType: finalFile.type || "image/webp" }),
+    UPLOAD_TIMEOUT_MS,
+    "La subida tardó demasiado.",
+  );
+  return await getDownloadURL(r);
 }

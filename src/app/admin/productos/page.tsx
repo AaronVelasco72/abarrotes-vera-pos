@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { memo, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import {
   addDoc, collection, deleteDoc, doc, getDocs, limit, query, serverTimestamp, updateDoc, where,
 } from "firebase/firestore";
@@ -14,18 +14,28 @@ import { lookupBarcode } from "@/lib/openfoodfacts";
 
 type Filter = "all" | CategoryKey;
 
+const PAGE_SIZE = 60;
+
 export default function ProductosPage() {
   const { products, loading } = useProducts();
   const [q, setQ] = useState("");
+  // Deferred: el input queda instantáneo, el filtro se recomputa en tiempo libre
+  const deferredQ = useDeferredValue(q);
   const [filter, setFilter] = useState<Filter>("all");
   const [editing, setEditing] = useState<Product | null>(null);
   const [creating, setCreating] = useState<{ initialBarcode?: string } | null>(null);
   const [flash, setFlashMsg] = useState<{ kind: "ok" | "err" | "warn"; msg: string } | null>(null);
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const searchRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     searchRef.current?.focus();
   }, []);
+
+  useEffect(() => {
+    // Reset paginación al cambiar filtro o búsqueda
+    setVisibleCount(PAGE_SIZE);
+  }, [deferredQ, filter]);
 
   function toast(kind: "ok" | "err" | "warn", msg: string) {
     setFlashMsg({ kind, msg });
@@ -33,7 +43,7 @@ export default function ProductosPage() {
   }
 
   const filtered = useMemo(() => {
-    const needle = q.trim().toLowerCase();
+    const needle = deferredQ.trim().toLowerCase();
     return products.filter((p) => {
       if (filter !== "all" && p.category !== filter) return false;
       if (!needle) return true;
@@ -43,7 +53,9 @@ export default function ProductosPage() {
         (p.barcode || "").includes(needle)
       );
     });
-  }, [products, q, filter]);
+  }, [products, deferredQ, filter]);
+
+  const visible = useMemo(() => filtered.slice(0, visibleCount), [filtered, visibleCount]);
 
   const totals = useMemo(() => {
     const skus = products.length;
@@ -133,11 +145,21 @@ export default function ProductosPage() {
             : "Sin resultados con ese filtro."}
         </div>
       ) : (
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-          {filtered.map((p) => (
-            <ProductCard key={p.id} product={p} onClick={() => setEditing(p)} />
-          ))}
-        </div>
+        <>
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+            {visible.map((p) => (
+              <ProductCard key={p.id} product={p} onClick={() => setEditing(p)} />
+            ))}
+          </div>
+          {visibleCount < filtered.length && (
+            <button
+              onClick={() => setVisibleCount((n) => n + PAGE_SIZE)}
+              className="btn-outline w-full"
+            >
+              Cargar más ({filtered.length - visibleCount} restantes)
+            </button>
+          )}
+        </>
       )}
 
       {(creating || editing) && (
@@ -216,7 +238,7 @@ function FilterPill({
   );
 }
 
-function ProductCard({ product, onClick }: { product: Product; onClick: () => void }) {
+const ProductCard = memo(function ProductCard({ product, onClick }: { product: Product; onClick: () => void }) {
   const cat = CATEGORIES[product.category] ?? CATEGORIES.otros;
   const low = product.stock <= product.minStock;
   const uninitialized = isProductUninitialized(product);
@@ -235,6 +257,8 @@ function ProductCard({ product, onClick }: { product: Product; onClick: () => vo
           <img
             src={product.imageUrl}
             alt={product.name}
+            loading="lazy"
+            decoding="async"
             className="absolute inset-0 size-full object-cover group-hover:scale-105 transition"
           />
         ) : (
@@ -281,7 +305,8 @@ function ProductCard({ product, onClick }: { product: Product; onClick: () => vo
       </div>
     </button>
   );
-}
+});
+ProductCard.displayName = "ProductCard";
 
 function ProductModal({
   product,
@@ -531,7 +556,7 @@ function ProductModal({
               <div className={`mt-1 rounded-2xl ${CATEGORIES[category].bg} aspect-square max-h-56 relative grid place-items-center overflow-hidden`}>
                 {preview ? (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={preview} alt="" className="absolute inset-0 size-full object-cover" />
+                  <img src={preview} alt="" loading="lazy" decoding="async" className="absolute inset-0 size-full object-cover" />
                 ) : (
                   <div className={`${CATEGORIES[category].text} scale-150 opacity-60`}>
                     {CATEGORIES[category].icon("size-12")}

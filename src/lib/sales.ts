@@ -145,23 +145,25 @@ export function useRecentSales(limitN = 50) {
       setLoading(false);
       return;
     }
-    const q = query(
-      collection(fb.db, "sales"),
-      orderBy("createdAt", "desc"),
-    );
-    const unsub = onSnapshot(
-      q,
-      (snap) => {
-        setSales(
-          snap.docs
-            .slice(0, limitN)
-            .map((d) => ({ id: d.id, ...(d.data() as Omit<Sale, "id">) })),
-        );
-        setLoading(false);
-      },
-      () => setLoading(false),
-    );
-    return () => unsub();
+    // Import limit dynamically to keep top-level imports slim
+    let unsub: (() => void) | null = null;
+    (async () => {
+      const { limit: fbLimit } = await import("firebase/firestore");
+      const q = query(
+        collection(fb.db, "sales"),
+        orderBy("createdAt", "desc"),
+        fbLimit(limitN),
+      );
+      unsub = onSnapshot(
+        q,
+        (snap) => {
+          setSales(snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<Sale, "id">) })));
+          setLoading(false);
+        },
+        () => setLoading(false),
+      );
+    })();
+    return () => { unsub?.(); };
   }, [limitN]);
 
   return { sales, loading };
