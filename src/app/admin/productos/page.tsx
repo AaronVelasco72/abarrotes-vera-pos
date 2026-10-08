@@ -1,6 +1,7 @@
 "use client";
 
 import { memo, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
+import dynamicImport from "next/dynamic";
 import {
   addDoc, collection, deleteDoc, doc, getDocs, limit, query, serverTimestamp, updateDoc, where,
 } from "firebase/firestore";
@@ -9,8 +10,13 @@ import { useProducts, isProductUninitialized, productMargin, productMarginPct, t
 import { uploadProductImage } from "@/lib/upload";
 import { formatMXN } from "@/lib/money";
 import { CATEGORIES, CATEGORY_LIST, CategoryChip, type CategoryKey } from "@/lib/categories";
-import { BarcodeScanner } from "@/components/BarcodeScanner";
 import { lookupBarcode } from "@/lib/openfoodfacts";
+
+// Lazy-load del scanner: ZXing (~100 KB) solo se descarga cuando el usuario abre la cámara
+const BarcodeScanner = dynamicImport(
+  () => import("@/components/BarcodeScanner").then((m) => m.BarcodeScanner),
+  { ssr: false, loading: () => <div className="fixed inset-0 bg-brand-950/90 grid place-items-center z-[60] text-white text-sm">Cargando cámara…</div> },
+);
 
 type Filter = "all" | CategoryKey;
 

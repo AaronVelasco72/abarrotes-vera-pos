@@ -20,13 +20,17 @@ export type CartResult =
   | { ok: true; cart: CartLine[] }
   | { ok: false; reason: "out_of_stock" | "exceeds_stock"; available: number };
 
-export function addToCart(cart: CartLine[], product: ProductLike): CartResult {
-  if (product.stock <= 0) {
+export function addToCart(
+  cart: CartLine[],
+  product: ProductLike,
+  { enforceStock = true }: { enforceStock?: boolean } = {},
+): CartResult {
+  if (enforceStock && product.stock <= 0) {
     return { ok: false, reason: "out_of_stock", available: 0 };
   }
   const existing = cart.find((l) => l.productId === product.id);
   const newQty = (existing?.qty ?? 0) + 1;
-  if (newQty > product.stock) {
+  if (enforceStock && newQty > product.stock) {
     return { ok: false, reason: "exceeds_stock", available: product.stock };
   }
   if (existing) {
@@ -57,11 +61,12 @@ export function changeQty(
   productId: string,
   delta: number,
   maxStock: number,
+  { enforceStock = true }: { enforceStock?: boolean } = {},
 ): CartResult {
   const line = cart.find((l) => l.productId === productId);
   if (!line) return { ok: true, cart };
   const next = line.qty + delta;
-  if (delta > 0 && next > maxStock) {
+  if (enforceStock && delta > 0 && next > maxStock) {
     return { ok: false, reason: "exceeds_stock", available: maxStock };
   }
   return {
