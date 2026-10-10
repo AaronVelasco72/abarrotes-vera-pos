@@ -38,3 +38,13 @@ body {
     @apply rounded-2xl bg-white shadow-card border border-brand-50;
   }
 }
+
+@layer utilities {
+  /* Fila de categorías deslizable en celular sin barra de scroll visible */
+  .no-scrollbar {
+    scrollbar-width: none;
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+}

@@ -3,10 +3,13 @@
 import { memo, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import dynamicImport from "next/dynamic";
 import {
-  addDoc, collection, deleteDoc, doc, getDocs, limit, query, serverTimestamp, updateDoc, where,
+  addDoc, collection, deleteDoc, doc, serverTimestamp, updateDoc,
 } from "firebase/firestore";
 import { getFirebase } from "@/lib/firebase";
-import { useProducts, isProductUninitialized, productMargin, productMarginPct, type Product } from "@/lib/products";
+import {
+  useProducts, findProductByBarcode, isProductUninitialized, productMargin, productMarginPct, type Product,
+} from "@/lib/products";
+import { barcodeKey, cleanBarcode, indexByBarcode } from "@/lib/barcode";
 import { uploadProductImage } from "@/lib/upload";
 import { formatMXN } from "@/lib/money";
 import { CATEGORIES, CATEGORY_LIST, CategoryChip, type CategoryKey } from "@/lib/categories";
@@ -32,6 +35,7 @@ export default function ProductosPage() {
   const [creating, setCreating] = useState<{ initialBarcode?: string } | null>(null);
   const [flash, setFlashMsg] = useState<{ kind: "ok" | "err" | "warn"; msg: string } | null>(null);
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+  const [scanning, setScanning] = useState(false);
   const searchRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -72,6 +76,8 @@ export default function ProductosPage() {
     return { skus, piezas, valor, uninitialized, alertas };
   }, [products]);
 
+  const byBarcode = useMemo(() => indexByBarcode(products), [products]);
+
   const suppliers = useMemo(() => {
     const set = new Set<string>();
     products.forEach((p) => p.supplier && set.add(p.supplier));
@@ -85,19 +91,43 @@ export default function ProductosPage() {
    */
   function onSearchKey(e: React.KeyboardEvent<HTMLInputElement>) {
     if (e.key !== "Enter") return;
-    const val = q.trim();
+    const val = cleanBarcode(q);
     if (!/^\d{8,14}$/.test(val)) return;
     e.preventDefault();
-    const existing = products.find((p) => p.barcode === val);
-    if (existing) {
-      toast("ok", `Encontrado: ${existing.name}`);
-      setEditing(existing);
-    } else {
-      toast("warn", `Nuevo producto — código ${val}`);
-      setCreating({ initialBarcode: val });
-    }
+    handleScan(val);
+  }
+
+  /**
+   * Escaneo (cámara o scanner externo) desde el catálogo:
+   * si el código ya está registrado → abre ese producto; nunca deja crear un duplicado.
+   */
+  async function handleScan(code: string) {
+    setScanning(false);
     setQ("");
-    setTimeout(() => searchRef.current?.focus(), 50);
+    const local = byBarcode.get(barcodeKey(code));
+    if (local) {
+      openExisting(local);
+      return;
+    }
+    // Verificación contra la base por si la lista local aún no se sincroniza
+    try {
+      const remote = await findProductByBarcode(code);
+      if (remote) {
+        openExisting(remote);
+        return;
+      }
+    } catch {
+      /* sin conexión: seguimos con el alta, onSave vuelve a verificar */
+    }
+    toast("warn", `Nuevo producto — código ${code}`);
+    setEditing(null);
+    setCreating({ initialBarcode: code });
+  }
+
+  function openExisting(p: Product) {
+    toast("ok", `Ya registrado: ${p.name}`);
+    setCreating(null);
+    setEditing(p);
   }
 
   return (
@@ -118,16 +148,25 @@ export default function ProductosPage() {
         <MiniStat label="Alertas de stock" value={String(totals.alertas)} tone={totals.alertas > 0 ? "warn" : "ok"} />
       </div>
 
-      <input
-        ref={searchRef}
-        value={q}
-        onChange={(e) => setQ(e.target.value)}
-        onKeyDown={onSearchKey}
-        placeholder="Buscar por nombre / SKU · o escanea código de barras con scanner externo…"
-        className="input"
-        inputMode="search"
-        autoFocus
-      />
+      <div className="flex gap-2">
+        <input
+          ref={searchRef}
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          onKeyDown={onSearchKey}
+          placeholder="Buscar por nombre / SKU · o escanea código…"
+          className="input flex-1 min-w-0"
+          inputMode="search"
+          autoFocus
+        />
+        <button
+          onClick={() => setScanning(true)}
+          className="btn-outline whitespace-nowrap"
+          title="Escanear con la cámara: si ya existe, abre el producto"
+        >
+          📷 <span className="hidden sm:inline">Escanear</span>
+        </button>
+      </div>
 
       <div className="flex flex-wrap gap-1.5">
         <FilterPill active={filter === "all"} onClick={() => setFilter("all")}>Todos</FilterPill>
@@ -170,20 +209,23 @@ export default function ProductosPage() {
 
       {(creating || editing) && (
         <ProductModal
+          // key: al pasar de "nuevo" a "editar existente" el formulario se reinicia con sus datos
+          key={editing?.id ?? "new"}
           product={editing}
           initialBarcode={creating?.initialBarcode}
           suppliers={suppliers}
           allProducts={products}
-          onSwitchToEdit={(p) => {
-            setCreating(null);
-            setEditing(p);
-          }}
+          onSwitchToEdit={openExisting}
           onClose={() => {
             setCreating(null);
             setEditing(null);
             setTimeout(() => searchRef.current?.focus(), 50);
           }}
         />
+      )}
+
+      {scanning && (
+        <BarcodeScanner onDetected={handleScan} onClose={() => setScanning(false)} />
       )}
 
       {flash && (
@@ -360,19 +402,45 @@ function ProductModal({
   const marginN = Number.isFinite(priceN) && Number.isFinite(costN) && costN > 0 ? priceN - costN : null;
   const marginPctN = marginN != null && costN > 0 ? (marginN / costN) * 100 : null;
 
+  // Verificación en vivo: ¿el código escrito/escaneado ya pertenece a otro producto?
+  const byBarcode = useMemo(() => indexByBarcode(allProducts), [allProducts]);
+  const localConflict = useMemo(() => {
+    const hit = byBarcode.get(barcodeKey(barcode));
+    return hit && hit.id !== product?.id ? hit : null;
+  }, [byBarcode, barcode, product?.id]);
+  const [remoteConflict, setRemoteConflict] = useState<Product | null>(null);
+  // Si el producto ya tenía ese código (duplicados heredados), no bloqueamos otras ediciones
+  const barcodeChanged = !isEdit || barcodeKey(barcode) !== barcodeKey(product?.barcode);
+  const conflict = !barcodeChanged
+    ? null
+    : localConflict ?? (remoteConflict && barcodeKey(remoteConflict.barcode) === barcodeKey(barcode) ? remoteConflict : null);
+
   async function autofillFromBarcode(code: string) {
     setBarcode(code);
     setScanning(false);
     setErr(null);
     setInfo(null);
 
-    // 1) Deduplicación: ¿ya existe un producto con este barcode?
+    // 1) Deduplicación: ¿ya existe un producto con este barcode? (caché local + base)
     setPhase("checking");
-    const conflict = allProducts.find((p) => p.barcode === code && p.id !== product?.id);
-    if (conflict) {
+    let dup: Product | null = byBarcode.get(barcodeKey(code)) ?? null;
+    if (dup?.id === product?.id) dup = null;
+    if (!dup) {
+      try {
+        dup = await findProductByBarcode(code, product?.id);
+      } catch {
+        dup = null;
+      }
+    }
+    if (dup) {
       setPhase("idle");
-      setInfo(`Este código ya existe: “${conflict.name}”. Abriendo su ficha para editar…`);
-      setTimeout(() => onSwitchToEdit(conflict), 900);
+      if (isEdit) {
+        // Editando: no permitimos asignar un código que ya es de otro producto
+        setRemoteConflict(dup);
+      } else {
+        // Alta: en lugar de registrar un duplicado, abrimos el producto existente
+        onSwitchToEdit(dup);
+      }
       return;
     }
 
@@ -426,20 +494,22 @@ function ProductModal({
     const idealN = parseInt(idealStock, 10);
     if (!Number.isFinite(idealN) || idealN < 0) return setErr("Stock ideal inválido.");
 
-    // Deduplicación final antes de guardar (por si el user escribió el barcode a mano)
-    if (!isEdit && barcode.trim()) {
-      const fb = getFirebase();
-      if (fb) {
-        setPhase("checking");
-        const snap = await getDocs(
-          query(collection(fb.db, "products"), where("barcode", "==", barcode.trim()), limit(1)),
-        );
-        if (!snap.empty) {
-          const first = snap.docs[0];
+    // Deduplicación final antes de guardar (alta o cambio de código en edición)
+    if (barcode.trim() && barcodeChanged) {
+      if (conflict) return setErr(`El código ${barcode.trim()} ya está registrado como “${conflict.name}”.`);
+      setPhase("checking");
+      try {
+        const dup = await findProductByBarcode(barcode, product?.id);
+        if (dup) {
+          setRemoteConflict(dup);
           setPhase("idle");
-          setErr(`El código ${barcode.trim()} ya está registrado como “${first.data().name}”.`);
+          setErr(`El código ${barcode.trim()} ya está registrado como “${dup.name}”.`);
           return;
         }
+      } catch (e) {
+        setPhase("idle");
+        setErr("No se pudo verificar si el código ya existe: " + (e as Error).message);
+        return;
       }
     }
 
@@ -675,6 +745,17 @@ function ProductModal({
               <input className="input" value={sku} onChange={(e) => setSku(e.target.value)} />
             </Field>
 
+            {conflict && (
+              <div className="text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2 flex items-center gap-2">
+                <span className="flex-1">
+                  Este código ya está registrado como <strong>“{conflict.name}”</strong>. No se puede repetir.
+                </span>
+                <button type="button" onClick={() => onSwitchToEdit(conflict)} className="btn-outline py-1.5 text-xs whitespace-nowrap">
+                  Abrir
+                </button>
+              </div>
+            )}
+
             {err && <div className="text-sm text-red-600 bg-red-50 rounded-xl px-3 py-2">{err}</div>}
           </div>
 
@@ -683,7 +764,7 @@ function ProductModal({
               <button onClick={onDelete} disabled={busy} className="btn-outline text-red-600 border-red-200 hover:bg-red-50">Eliminar</button>
             )}
             <button onClick={onClose} disabled={busy} className={`btn-outline ${isEdit ? "" : "col-span-1"}`}>Cancelar</button>
-            <button onClick={onSave} disabled={busy} className={`btn-primary ${isEdit ? "col-span-1" : "col-span-2"}`}>
+            <button onClick={onSave} disabled={busy || !!conflict} className={`btn-primary ${isEdit ? "col-span-1" : "col-span-2"}`}>
               {phase === "saving" ? "Guardando…" : phase === "uploading" ? "Subiendo imagen…" : phase === "looking-up" ? "Buscando…" : phase === "checking" ? "Verificando…" : "Guardar"}
             </button>
           </div>
