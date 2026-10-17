@@ -150,13 +150,26 @@ export default function ProductosPage() {
           <div className="text-brand-400 text-xs tracking-[0.2em]">CATÁLOGO</div>
           <h1 className="text-2xl font-bold text-brand-900">Productos</h1>
         </div>
-        <div className="flex gap-2">
-          <Link href="/admin/pendientes" className="btn-outline whitespace-nowrap" title="Escanear todo rápido y registrar después">
-            ⚡ Pendientes{pendingItems.length > 0 && ` (${pendingItems.length})`}
-          </Link>
-          <button onClick={() => setCreating({})} className="btn-primary">+ Nuevo</button>
-        </div>
+        <button onClick={() => setCreating({})} className="btn-primary">+ Nuevo</button>
       </div>
+
+      <Link
+        href="/admin/pendientes"
+        className="flex items-center gap-3 rounded-2xl bg-gradient-to-r from-amber-400 to-amber-500 text-amber-950 px-4 py-3 shadow-card active:scale-[0.99] transition"
+      >
+        <span className="text-2xl">⚡</span>
+        <span className="flex-1 min-w-0">
+          <span className="block font-bold">Escaneo rápido</span>
+          <span className="block text-xs text-amber-900/80">
+            Pasa todo sin llenar nada y regístralo después
+          </span>
+        </span>
+        {pendingItems.length > 0 && (
+          <span className="rounded-full bg-amber-950 text-amber-100 text-xs font-bold px-2.5 py-1 tabular-nums">
+            {pendingItems.length} pendientes
+          </span>
+        )}
+      </Link>
 
       <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
         <MiniStat label="SKUs" value={String(totals.skus)} />

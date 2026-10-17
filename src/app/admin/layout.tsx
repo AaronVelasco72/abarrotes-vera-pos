@@ -140,6 +140,17 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
       <main className="px-4 py-5 max-w-3xl mx-auto">{children}</main>
 
+      {/* Acceso directo al escaneo rápido desde cualquier sección */}
+      {pathname !== "/admin/pendientes" && (
+        <Link
+          href="/admin/pendientes"
+          aria-label="Escaneo rápido"
+          className="fixed right-4 bottom-[calc(5.5rem+env(safe-area-inset-bottom))] z-30 flex items-center gap-1.5 rounded-full bg-amber-400 text-amber-950 font-bold text-sm pl-3 pr-4 py-3 shadow-lg ring-4 ring-white active:scale-95 transition"
+        >
+          <span className="text-lg leading-none">⚡</span> Escanear
+        </Link>
+      )}
+
       {/* Bottom nav (mobile-first) */}
       <nav className="fixed bottom-0 inset-x-0 bg-white/95 backdrop-blur border-t border-brand-100 grid grid-cols-6 z-30 pb-[env(safe-area-inset-bottom)]">
         {nav.map((item) => {
