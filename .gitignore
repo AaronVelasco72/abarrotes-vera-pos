@@ -9,3 +9,4 @@ service-account.json
 .claude/
 coverage/
 ~$*
+*.tsbuildinfo
