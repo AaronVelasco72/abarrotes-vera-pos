@@ -143,7 +143,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       {/* Bottom nav (mobile-first) */}
       <nav className="fixed bottom-0 inset-x-0 bg-white/95 backdrop-blur border-t border-brand-100 grid grid-cols-6 z-30 pb-[env(safe-area-inset-bottom)]">
         {nav.map((item) => {
-          const active = pathname === item.href;
+          // Pendientes es parte del flujo de Productos
+          const active =
+            pathname === item.href ||
+            (item.href === "/admin/productos" && pathname === "/admin/pendientes");
           return (
             <Link
               key={item.href}

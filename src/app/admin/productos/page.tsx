@@ -2,6 +2,7 @@
 
 import { memo, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import dynamicImport from "next/dynamic";
+import Link from "next/link";
 import {
   addDoc, collection, deleteDoc, doc, serverTimestamp, updateDoc,
 } from "firebase/firestore";
@@ -14,6 +15,7 @@ import { uploadProductImage } from "@/lib/upload";
 import { formatMXN } from "@/lib/money";
 import { CATEGORIES, CATEGORY_LIST, CategoryChip, type CategoryKey } from "@/lib/categories";
 import { lookupBarcode } from "@/lib/openfoodfacts";
+import { clearPendingFor, usePendingScans } from "@/lib/pending";
 
 // Lazy-load del scanner: ZXing (~100 KB) solo se descarga cuando el usuario abre la cámara
 const BarcodeScanner = dynamicImport(
@@ -41,6 +43,17 @@ export default function ProductosPage() {
   useEffect(() => {
     searchRef.current?.focus();
   }, []);
+
+  // Viene de Pendientes ("Registrar"): abre el alta con ese código ya escaneado
+  useEffect(() => {
+    const code = new URLSearchParams(window.location.search).get("barcode");
+    if (!code) return;
+    window.history.replaceState(null, "", window.location.pathname);
+    handleScan(code);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const { items: pendingItems } = usePendingScans();
 
   useEffect(() => {
     // Reset paginación al cambiar filtro o búsqueda
@@ -137,7 +150,12 @@ export default function ProductosPage() {
           <div className="text-brand-400 text-xs tracking-[0.2em]">CATÁLOGO</div>
           <h1 className="text-2xl font-bold text-brand-900">Productos</h1>
         </div>
-        <button onClick={() => setCreating({})} className="btn-primary">+ Nuevo</button>
+        <div className="flex gap-2">
+          <Link href="/admin/pendientes" className="btn-outline whitespace-nowrap" title="Escanear todo rápido y registrar después">
+            ⚡ Pendientes{pendingItems.length > 0 && ` (${pendingItems.length})`}
+          </Link>
+          <button onClick={() => setCreating({})} className="btn-primary">+ Nuevo</button>
+        </div>
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
@@ -545,6 +563,7 @@ function ProductModal({
         });
         savedId = created.id;
       }
+      if (barcode.trim()) clearPendingFor(barcode);
     } catch (e) {
       setErr("No se pudo guardar: " + (e as Error).message);
       setPhase("idle");

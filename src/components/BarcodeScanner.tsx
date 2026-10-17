@@ -7,10 +7,19 @@ import { BarcodeFormat, DecodeHintType } from "@zxing/library";
 type Props = {
   onDetected: (code: string) => void;
   onClose: () => void;
+  title?: string;
+  hint?: string;
+  closeLabel?: string;
+  /** Contenido extra bajo el video (p. ej. el último código en modo ráfaga). */
+  children?: React.ReactNode;
 };
 
-export function BarcodeScanner({ onDetected, onClose }: Props) {
+export function BarcodeScanner({ onDetected, onClose, title, hint, closeLabel, children }: Props) {
   const videoRef = useRef<HTMLVideoElement>(null);
+  // Ref al callback más reciente: el lector se crea una sola vez por cámara y
+  // en modo ráfaga el padre cambia de estado sin cerrar el scanner.
+  const onDetectedRef = useRef(onDetected);
+  onDetectedRef.current = onDetected;
   const [error, setError] = useState<string | null>(null);
   const [starting, setStarting] = useState(true);
   const [cameras, setCameras] = useState<MediaDeviceInfo[]>([]);
@@ -77,12 +86,7 @@ export function BarcodeScanner({ onDetected, onClose }: Props) {
           (result, err) => {
             if (result && mounted) {
               const code = result.getText();
-              if (code && /^\d{6,}$/.test(code)) {
-                // Beep visual feedback could be added here
-                onDetected(code);
-              } else if (code) {
-                onDetected(code);
-              }
+              if (code) onDetectedRef.current(code);
             }
             // ignore err continuously thrown until a code is found
           },
@@ -121,8 +125,8 @@ export function BarcodeScanner({ onDetected, onClose }: Props) {
       >
         <div className="px-5 py-3 flex items-center justify-between border-b border-brand-50">
           <div>
-            <h3 className="font-bold text-brand-900">Escanear código</h3>
-            <div className="text-[11px] text-brand-400">Apunta la cámara al código de barras del producto.</div>
+            <h3 className="font-bold text-brand-900">{title ?? "Escanear código"}</h3>
+            <div className="text-[11px] text-brand-400">{hint ?? "Apunta la cámara al código de barras del producto."}</div>
           </div>
           <button onClick={onClose} className="text-brand-300 hover:text-brand-700 text-lg">✕</button>
         </div>
@@ -151,11 +155,13 @@ export function BarcodeScanner({ onDetected, onClose }: Props) {
           )}
         </div>
 
+        {children}
+
         <div className="p-4 flex items-center justify-between text-xs">
           <button onClick={switchCamera} disabled={cameras.length <= 1} className="btn-outline text-xs">
             Cambiar cámara
           </button>
-          <button onClick={onClose} className="btn-ghost text-xs">Cancelar</button>
+          <button onClick={onClose} className="btn-ghost text-xs">{closeLabel ?? "Cancelar"}</button>
         </div>
       </div>
     </div>
